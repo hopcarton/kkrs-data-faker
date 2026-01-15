@@ -11,7 +11,8 @@ Thumbs.db
 
 # Compiled files
 *.mo
-*.pot
+# Keep .pot file (translation template)
+# *.pot
 
 # Logs
 *.log

@@ -1,0 +1,111 @@
+# Copyright (C) 2026 KKSR Data Faker
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: KKSR Data Faker 3.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/MaiSyDat/kksr-data-faker/issues\n"
+"POT-Creation-Date: 2026-01-15 12:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: includes/class-kksr-admin.php:82
+msgid "Settings"
+msgstr ""
+
+#: includes/class-kksr-admin.php:97
+msgid "KKSR Data Faker Settings"
+msgstr ""
+
+#: includes/class-kksr-admin.php:98
+msgid "KKSR Faker"
+msgstr ""
+
+#: includes/class-kksr-admin.php:124
+msgid "Rating Simulation Settings"
+msgstr ""
+
+#: includes/class-kksr-admin.php:129
+msgid "Minimum Vote Count"
+msgstr ""
+
+#: includes/class-kksr-admin.php:129
+msgid "Minimum number of votes/reviews to generate"
+msgstr ""
+
+#: includes/class-kksr-admin.php:130
+msgid "Maximum Vote Count"
+msgstr ""
+
+#: includes/class-kksr-admin.php:130
+msgid "Maximum number of votes/reviews to generate"
+msgstr ""
+
+#: includes/class-kksr-admin.php:131
+msgid "Minimum Star Rating"
+msgstr ""
+
+#: includes/class-kksr-admin.php:131
+msgid "Minimum star rating (1.0 - 5.0)"
+msgstr ""
+
+#: includes/class-kksr-admin.php:132
+msgid "Maximum Star Rating"
+msgstr ""
+
+#: includes/class-kksr-admin.php:132
+msgid "Maximum star rating (1.0 - 5.0)"
+msgstr ""
+
+#: includes/class-kksr-admin.php:137
+msgid "General Settings"
+msgstr ""
+
+#: includes/class-kksr-admin.php:142
+msgid "Real Votes Threshold"
+msgstr ""
+
+#: includes/class-kksr-admin.php:142
+msgid "Posts with votes equal to or greater than this number will not be overwritten (default: 100)"
+msgstr ""
+
+#: includes/class-kksr-admin.php:154
+msgid "Configure the range for generated ratings and votes (KK Star Ratings for posts only)."
+msgstr ""
+
+#: includes/class-kksr-admin.php:166
+msgid "General plugin settings and thresholds."
+msgstr ""
+
+#: includes/class-kksr-admin.php:277
+msgid "Minimum vote count must be less than maximum vote count."
+msgstr ""
+
+#: includes/class-kksr-admin.php:286
+msgid "Minimum star rating must be less than maximum star rating."
+msgstr ""
+
+#: includes/class-kksr-admin.php:305
+msgid "You do not have sufficient permissions to access this page."
+msgstr ""
+
+#: includes/class-kksr-admin.php:312
+msgid "How it works:"
+msgstr ""
+
+#: includes/class-kksr-admin.php:314
+msgid "Data is saved to wp_postmeta with keys: _kksr_count_default, _kksr_avg_default, _kksr_ratings_default."
+msgstr ""
+
+#: includes/class-kksr-admin.php:317
+msgid "Real data protection: If a post already has votes equal to or greater than the real votes threshold, the plugin will NOT overwrite the data."
+msgstr ""
+
+#: includes/class-kksr-frontend.php:103
+msgid "%s vote"
+msgid_plural "%s votes"
+msgstr[0] ""
+msgstr[1] ""
