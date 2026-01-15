@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       KKSR Data Faker
  * Plugin URI:        https://github.com/MaiSyDat/kksr-data-faker
- * Description:       Advanced data simulation tool for KK Star Ratings, WooCommerce, and custom rating systems. Compatible with Hupuna theme and standard WooCommerce themes.
+ * Description:       Automatically generates and saves real KK Star Ratings data to database for posts and products. Includes data protection threshold.
  * Version:           3.0.0
  * Author:            MaiSyDat
  * Author URI:        https://hupuna.com

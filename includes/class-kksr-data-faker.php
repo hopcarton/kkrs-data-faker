@@ -3,10 +3,10 @@
  * Main Plugin Class
  *
  * This class handles the core functionality of the plugin including:
- * - Auto-generate and save REAL ratings data to database
- * - Data generation with consistent seeding (same post ID = same data)
+ * - Auto-generate and save REAL ratings data to database (posts and products)
+ * - Data generation with consistent seeding (same post/product ID = same data)
  * - Threshold checking to prevent overwriting existing data
- * - Automatic generation when posts are viewed
+ * - Automatic generation when posts/products are viewed or saved
  *
  * @package KKSR_Data_Faker
  * @since   3.0.0
@@ -186,15 +186,15 @@ class KKSR_Data_Faker {
 	/**
 	 * Auto Generate Data
 	 *
-	 * Automatically generates and saves real data to database when post is viewed.
+	 * Automatically generates and saves real data to database when post/product is viewed.
 	 * Only generates if existing votes are below threshold.
 	 *
 	 * @since  3.0.0
 	 * @return void
 	 */
 	public function auto_generate_data() {
-		// Only on singular post pages.
-		if ( ! is_singular( 'post' ) ) {
+		// Only on singular post or product pages.
+		if ( ! is_singular( array( 'post', 'product' ) ) ) {
 			return;
 		}
 
@@ -203,16 +203,16 @@ class KKSR_Data_Faker {
 			return;
 		}
 
-		// Check threshold before generating.
+		// Only generate if no data exists yet (existing_votes = 0).
+		// Once data exists (even fake), don't regenerate to avoid overwriting real votes.
 		$existing_votes = (int) get_post_meta( $post_id, '_kksr_count_default', true );
-		$threshold_votes = $this->get_setting( 'threshold_votes', 100 );
 
-		// If existing votes >= threshold, don't generate (protect real data).
-		if ( $existing_votes >= $threshold_votes ) {
+		// If data already exists, don't generate (protect existing data including real votes).
+		if ( $existing_votes > 0 ) {
 			return;
 		}
 
-		// Generate and save data.
+		// Generate and save data only if no data exists.
 		$this->generate_and_save_data( $post_id );
 	}
 
@@ -221,15 +221,16 @@ class KKSR_Data_Faker {
 	 *
 	 * Generates random data and saves it to database as real metadata.
 	 * Only generates if existing votes are below threshold.
+	 * Works for both posts and products.
 	 *
 	 * @since  3.0.0
-	 * @param  int $post_id Post ID to generate data for.
+	 * @param  int $post_id Post/Product ID to generate data for.
 	 * @return array|bool   Generated data array or false if disabled.
 	 */
-	public function generate_and_save_data( $post_id ) {
-		// Only for posts (not products).
+	public function generate_and_save_data( $post_id, $force = false ) {
+		// Only for posts and products.
 		$post_type = get_post_type( $post_id );
-		if ( 'post' !== $post_type ) {
+		if ( ! in_array( $post_type, array( 'post', 'product' ), true ) ) {
 			return false;
 		}
 
@@ -239,6 +240,11 @@ class KKSR_Data_Faker {
 
 		// If existing votes >= threshold, don't generate (protect real data).
 		if ( $existing_votes >= $threshold_votes ) {
+			return false;
+		}
+
+		// If not forcing and data already exists, don't regenerate (protect existing data including real votes).
+		if ( ! $force && $existing_votes > 0 ) {
 			return false;
 		}
 
@@ -283,18 +289,19 @@ class KKSR_Data_Faker {
 	}
 
 	/**
-	 * Generate Data on Post Save
+	 * Generate Data on Post/Product Save
 	 *
-	 * Generates and saves data when a post is saved or updated.
+	 * Generates and saves data when a post or product is saved or updated.
 	 * Only generates if existing votes are below threshold.
 	 *
 	 * @since  3.0.0
-	 * @param  int $post_id Post ID being saved.
+	 * @param  int $post_id Post/Product ID being saved.
 	 * @return void
 	 */
 	public function generate_on_save( $post_id ) {
-		// Only for posts.
-		if ( 'post' !== get_post_type( $post_id ) ) {
+		// Only for posts and products.
+		$post_type = get_post_type( $post_id );
+		if ( ! in_array( $post_type, array( 'post', 'product' ), true ) ) {
 			return;
 		}
 
@@ -303,24 +310,24 @@ class KKSR_Data_Faker {
 			return;
 		}
 
-		// Check threshold before generating.
+		// Only generate if no data exists yet (existing_votes = 0).
+		// Once data exists, don't regenerate to avoid overwriting real votes.
 		$existing_votes = (int) get_post_meta( $post_id, '_kksr_count_default', true );
-		$threshold_votes = $this->get_setting( 'threshold_votes', 100 );
 
-		// If existing votes >= threshold, don't generate (protect real data).
-		if ( $existing_votes >= $threshold_votes ) {
+		// If data already exists, don't generate (protect existing data including real votes).
+		if ( $existing_votes > 0 ) {
 			return;
 		}
 
-		// Generate and save data.
+		// Generate and save data only if no data exists.
 		$this->generate_and_save_data( $post_id );
 	}
 
 	/**
-	 * Generate Data for All Posts on Activation
+	 * Generate Data for All Posts and Products on Activation
 	 *
-	 * Generates and saves data for all existing posts when plugin is activated.
-	 * Only generates for posts with votes below threshold.
+	 * Generates and saves data for all existing posts and products when plugin is activated.
+	 * Only generates for items with votes below threshold.
 	 *
 	 * @since  3.0.0
 	 * @return void
@@ -346,6 +353,66 @@ class KKSR_Data_Faker {
 		// Generate data for each post (only if below threshold).
 		foreach ( $posts as $post ) {
 			$faker->generate_and_save_data( $post->ID );
+		}
+
+		// Get all published products (if WooCommerce is active).
+		if ( post_type_exists( 'product' ) ) {
+			$products = get_posts(
+				array(
+					'post_type'      => 'product',
+					'posts_per_page' => -1,
+					'post_status'    => 'publish',
+				)
+			);
+
+			// Generate data for each product (only if below threshold).
+			foreach ( $products as $product ) {
+				$faker->generate_and_save_data( $product->ID );
+			}
+		}
+	}
+
+	/**
+	 * Regenerate All Data with New Settings
+	 *
+	 * Regenerates data for all posts and products with votes below threshold.
+	 * Used when settings are updated to apply new min/max ranges.
+	 *
+	 * @since  3.0.0
+	 * @return void
+	 */
+	public function regenerate_all_data() {
+		// Reload settings from database to get latest values.
+		$this->load_settings();
+
+		// Get all published posts.
+		$posts = get_posts(
+			array(
+				'post_type'      => 'post',
+				'posts_per_page' => -1,
+				'post_status'    => 'publish',
+			)
+		);
+
+		// Regenerate data for each post (force regenerate if below threshold).
+		foreach ( $posts as $post ) {
+			$this->generate_and_save_data( $post->ID, true );
+		}
+
+		// Get all published products (if WooCommerce is active).
+		if ( post_type_exists( 'product' ) ) {
+			$products = get_posts(
+				array(
+					'post_type'      => 'product',
+					'posts_per_page' => -1,
+					'post_status'    => 'publish',
+				)
+			);
+
+			// Regenerate data for each product (force regenerate if below threshold).
+			foreach ( $products as $product ) {
+				$this->generate_and_save_data( $product->ID, true );
+			}
 		}
 	}
 }

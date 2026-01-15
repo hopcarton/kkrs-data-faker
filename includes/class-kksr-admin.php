@@ -67,6 +67,12 @@ class KKSR_Admin {
 		
 		// Add "Settings" link to plugins page.
 		add_filter( 'plugin_action_links_' . plugin_basename( KKSR_FAKER_PLUGIN_FILE ), array( $this, 'add_action_links' ) );
+		
+		// Regenerate all data when settings are updated.
+		add_action( 'update_option_kksr_faker_settings', array( $this, 'handle_settings_update' ), 10, 2 );
+		
+		// Also hook into admin_init to check if we need to regenerate after settings save.
+		add_action( 'admin_init', array( $this, 'maybe_regenerate_after_save' ) );
 	}
 
 	/**
@@ -151,7 +157,7 @@ class KKSR_Admin {
 	 * @return void
 	 */
 	public function render_rating_section() {
-		echo '<p>' . esc_html__( 'Configure the range for generated ratings and votes (KK Star Ratings for posts only).', 'kksr-data-faker' ) . '</p>';
+		echo '<p>' . esc_html__( 'Configure the range for generated ratings and votes (KK Star Ratings for posts and products).', 'kksr-data-faker' ) . '</p>';
 	}
 
 	/**
@@ -288,7 +294,102 @@ class KKSR_Admin {
 			);
 		}
 
+		// Set flag to regenerate after settings are saved.
+		if ( ! empty( $sanitized ) ) {
+			set_transient( 'kksr_faker_regenerate_after_save', true, 60 ); // Expire after 60 seconds.
+		}
+
 		return $sanitized;
+	}
+
+	/**
+	 * Handle Settings Update
+	 *
+	 * Regenerates all data when settings are saved to apply new ranges.
+	 * Only regenerates posts/products with votes below threshold.
+	 *
+	 * @since  3.0.0
+	 * @param  array $old_value Previous settings value.
+	 * @param  array $new_value New settings value.
+	 * @return void
+	 */
+	public function handle_settings_update( $old_value, $new_value ) {
+		// Get instance of data faker.
+		$faker = KKSR_Data_Faker::get_instance();
+		
+		// Regenerate all data with new settings (only for items below threshold).
+		$faker->regenerate_all_data();
+	}
+
+	/**
+	 * Maybe Regenerate After Save
+	 *
+	 * Checks if settings were just saved and triggers regeneration.
+	 * Also handles manual regenerate action.
+	 * This is a backup method in case update_option hook doesn't fire.
+	 *
+	 * @since  3.0.0
+	 * @return void
+	 */
+	public function maybe_regenerate_after_save() {
+		// Only on our settings page.
+		if ( ! isset( $_GET['page'] ) || 'kksr-data-faker' !== $_GET['page'] ) {
+			return;
+		}
+
+		// Handle manual regenerate action.
+		if ( isset( $_POST['kksr_faker_action'] ) && 'regenerate_all' === $_POST['kksr_faker_action'] ) {
+			// Verify nonce.
+			if ( ! isset( $_POST['kksr_faker_regenerate_nonce'] ) || ! wp_verify_nonce( $_POST['kksr_faker_regenerate_nonce'], 'kksr_faker_regenerate' ) ) {
+				wp_die( esc_html__( 'Security check failed.', 'kksr-data-faker' ) );
+			}
+
+			// Check user permissions.
+			if ( ! current_user_can( 'manage_options' ) ) {
+				wp_die( esc_html__( 'You do not have sufficient permissions.', 'kksr-data-faker' ) );
+			}
+
+			// Get instance of data faker.
+			$faker = KKSR_Data_Faker::get_instance();
+			
+			// Regenerate all data with current settings (only for items below threshold).
+			$faker->regenerate_all_data();
+			
+			// Add success message.
+			add_settings_error(
+				'kksr_faker_settings',
+				'regenerated',
+				__( 'All data has been regenerated with current settings.', 'kksr-data-faker' ),
+				'success'
+			);
+
+			// Redirect to prevent resubmission.
+			wp_safe_redirect( add_query_arg( 'regenerated', 'true', admin_url( 'options-general.php?page=kksr-data-faker' ) ) );
+			exit;
+		}
+
+		// Check if settings were just saved.
+		if ( isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'] ) {
+			// Check if we have a flag to regenerate.
+			if ( get_transient( 'kksr_faker_regenerate_after_save' ) ) {
+				// Delete the flag.
+				delete_transient( 'kksr_faker_regenerate_after_save' );
+				
+				// Get instance of data faker.
+				$faker = KKSR_Data_Faker::get_instance();
+				
+				// Regenerate all data with new settings (only for items below threshold).
+				$faker->regenerate_all_data();
+				
+				// Add success message.
+				add_settings_error(
+					'kksr_faker_settings',
+					'regenerated',
+					__( 'Settings saved. All data has been regenerated with new ranges.', 'kksr-data-faker' ),
+					'success'
+				);
+			}
+		}
 	}
 
 	/**
@@ -325,6 +426,16 @@ class KKSR_Admin {
 				submit_button();
 				?>
 			</form>
+
+			<div class="kksr-faker-actions" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+				<h2><?php esc_html_e( 'Actions', 'kksr-data-faker' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Regenerate all data with current settings. This will update all posts and products with votes below the threshold.', 'kksr-data-faker' ); ?></p>
+				<form method="post" action="">
+					<?php wp_nonce_field( 'kksr_faker_regenerate', 'kksr_faker_regenerate_nonce' ); ?>
+					<input type="hidden" name="kksr_faker_action" value="regenerate_all" />
+					<?php submit_button( __( 'Regenerate All Data', 'kksr-data-faker' ), 'secondary', 'regenerate_all', false ); ?>
+				</form>
+			</div>
 		</div>
 		<?php
 	}
