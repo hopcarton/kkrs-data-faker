@@ -1,0 +1,86 @@
+/**
+ * KKSR Data Faker - Admin Styles
+ * Version: 3.0.0
+ */
+
+.wrap h1 {
+	margin-bottom: 20px;
+}
+
+.kksr-faker-notice {
+	background: #fff;
+	border-left: 4px solid #2271b1;
+	padding: 15px 20px;
+	margin: 20px 0;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.kksr-faker-notice h3 {
+	margin-top: 0;
+	margin-bottom: 10px;
+	font-size: 16px;
+	color: #2271b1;
+}
+
+.kksr-faker-notice ul {
+	margin: 10px 0 0 20px;
+	list-style: disc;
+}
+
+.kksr-faker-notice ul li {
+	margin-bottom: 8px;
+	line-height: 1.6;
+}
+
+.form-table th {
+	padding: 20px 10px 20px 0;
+	vertical-align: top;
+}
+
+.form-table td {
+	padding: 15px 10px;
+}
+
+.form-table input[type="number"] {
+	width: 200px;
+	max-width: 100%;
+}
+
+.form-table p.description {
+	margin: 5px 0 0 0;
+	color: #646970;
+	font-style: italic;
+}
+
+h2.title {
+	font-size: 18px;
+	margin: 30px 0 15px 0;
+	padding: 10px 0;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.submit {
+	padding-top: 10px;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+	.form-table input[type="number"] {
+		width: 100%;
+	}
+	
+	.kksr-faker-notice {
+		padding: 12px 15px;
+	}
+}
+
+/* Success message styling */
+.notice.notice-success {
+	border-left-color: #00a32a;
+}
+
+/* Error message styling */
+.notice.notice-error {
+	border-left-color: #d63638;
+}
+
