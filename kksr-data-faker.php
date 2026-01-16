@@ -3,8 +3,8 @@
 /**
  * Plugin Name:       KKSR Data Faker
  * Plugin URI:        https://github.com/MaiSyDat/kksr-data-faker
- * Description:       Automatically generates and saves real KK Star Ratings data to database for posts and products. Includes data protection threshold.
- * Version:           3.0.0
+ * Description:       Traffic-based ratings and sales counter. Automatically increments KK Star Ratings and WooCommerce sales based on unique visitor views with configurable cooldown period.
+ * Version:           4.0.0
  * Author:            MaiSyDat
  * Author URI:        https://hupuna.com
  * License:           GPL v2 or later
@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Define core constants used throughout the plugin for consistency
  * and easy maintenance.
  */
-define( 'KKSR_FAKER_VERSION', '3.0.0' );
+define( 'KKSR_FAKER_VERSION', '4.0.0' );
 define( 'KKSR_FAKER_PLUGIN_FILE', __FILE__ );
 define( 'KKSR_FAKER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'KKSR_FAKER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -96,24 +96,28 @@ add_action( 'plugins_loaded', 'kksr_faker_init' );
 /**
  * Register Activation Hook
  *
- * Generates data for all existing posts when plugin is activated.
+ * Creates visitor log table when plugin is activated.
  *
- * @since 3.0.0
+ * @since 4.0.0
  */
 register_activation_hook( KKSR_FAKER_PLUGIN_FILE, 'kksr_faker_activation' );
 
 /**
  * Activation Hook Callback
  *
- * Loads classes and generates data for all posts on activation.
+ * Creates database table for visitor tracking.
+ * Does NOT reset existing data - preserves ratings and sales.
  *
- * @since 3.0.0
+ * @since 4.0.0
  * @return void
  */
 function kksr_faker_activation() {
 	// Load class files first.
 	require_once KKSR_FAKER_PLUGIN_DIR . 'includes/class-kksr-data-faker.php';
 	
-	// Call static method to generate data for all posts.
-	KKSR_Data_Faker::generate_all_posts_on_activation();
+	// Create visitor log table.
+	KKSR_Data_Faker::create_visitor_table();
+	
+	// Do NOT reset counters - keep existing data!
+	// Plugin will increment from current numbers.
 }

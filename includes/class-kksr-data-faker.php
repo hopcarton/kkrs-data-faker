@@ -3,13 +3,13 @@
  * Main Plugin Class
  *
  * This class handles the core functionality of the plugin including:
- * - Auto-generate and save REAL ratings data to database (posts and products)
- * - Data generation with consistent seeding (same post/product ID = same data)
- * - Threshold checking to prevent overwriting existing data
- * - Automatic generation when posts/products are viewed or saved
+ * - Traffic-based ratings increment (posts and products)
+ * - Traffic-based sales increment (products only)
+ * - Visitor tracking with cooldown period
+ * - Session-based F5 prevention
  *
  * @package KKSR_Data_Faker
- * @since   3.0.0
+ * @since   4.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -19,60 +19,43 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Class KKSR_Data_Faker
  *
- * Core class that manages data simulation functionality.
+ * Core class that manages traffic-based data increment functionality.
  * Uses Singleton pattern to ensure only one instance exists.
  *
- * @since 3.0.0
+ * @since 4.0.0
  */
 class KKSR_Data_Faker {
 
 	/**
 	 * Default Configuration Constants
-	 *
-	 * These values are used when the user hasn't configured
-	 * custom settings through the admin panel.
 	 */
-	const DEFAULT_MIN_VOTES = 100;   // Minimum fake vote/review count.
-	const DEFAULT_MAX_VOTES = 500;   // Maximum fake vote/review count.
-	const DEFAULT_MIN_STARS = 3.0;   // Minimum star rating (1.0-5.0).
-	const DEFAULT_MAX_STARS = 5.0;   // Maximum star rating (1.0-5.0).
+	const DEFAULT_COOLDOWN_DAYS = 7;
+
+	/**
+	 * Database table name
+	 *
+	 * @var string
+	 */
+	private $table_name;
 
 	/**
 	 * Singleton Instance
 	 *
-	 * @since 3.0.0
-	 * @var   KKSR_Data_Faker|null
+	 * @var KKSR_Data_Faker|null
 	 */
 	private static $instance = null;
 
 	/**
 	 * Plugin Settings
 	 *
-	 * Stores user-configured settings loaded from database.
-	 *
-	 * @since 3.0.0
-	 * @var   array
+	 * @var array
 	 */
 	private $settings = array();
 
 	/**
-	 * Data Cache
-	 *
-	 * Caches simulation data per post ID to avoid repeated calculations.
-	 * Format: [ post_id => simulation_data_array ]
-	 *
-	 * @since 3.0.0
-	 * @var   array
-	 */
-	private $data_cache = array();
-
-	/**
 	 * Get Singleton Instance
 	 *
-	 * Ensures only one instance of this class exists in memory.
-	 *
-	 * @since  3.0.0
-	 * @return KKSR_Data_Faker Single instance of the class.
+	 * @return KKSR_Data_Faker
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -83,336 +66,318 @@ class KKSR_Data_Faker {
 
 	/**
 	 * Constructor
-	 *
-	 * Private constructor to prevent direct instantiation.
-	 * Use get_instance() instead.
-	 *
-	 * @since 3.0.0
 	 */
 	private function __construct() {
+		global $wpdb;
+		$this->table_name = $wpdb->prefix . 'kksr_visitor_log';
+		
 		$this->load_settings();
 		$this->init_hooks();
 	}
 
 	/**
 	 * Load Settings from Database
-	 *
-	 * Retrieves user settings from wp_options table and merges
-	 * with default values as fallback.
-	 *
-	 * @since 3.0.0
-	 * @return void
 	 */
 	private function load_settings() {
-		// Default settings used as fallback.
 		$defaults = array(
-			'min_votes'        => self::DEFAULT_MIN_VOTES,
-			'max_votes'        => self::DEFAULT_MAX_VOTES,
-			'min_stars'        => self::DEFAULT_MIN_STARS,
-			'max_stars'        => self::DEFAULT_MAX_STARS,
-			'threshold_votes'  => 100,
+			// Ratings settings
+			'rating_auto_increment'  => true,
+			'rating_cooldown_days'   => self::DEFAULT_COOLDOWN_DAYS,
+			'rating_threshold'       => 100,
+			'rating_min_stars'       => 4,  // Min stars (1-5)
+			'rating_max_stars'       => 5,  // Max stars (1-5)
+			
+			// Sales settings
+			'sales_auto_increment'   => true,
+			'sales_cooldown_days'    => self::DEFAULT_COOLDOWN_DAYS,
+			'sales_threshold'        => 50,
 		);
 
-		// Get saved settings and merge with defaults.
 		$saved_settings = get_option( 'kksr_faker_settings', array() );
 		$this->settings = wp_parse_args( $saved_settings, $defaults );
 	}
 
 	/**
 	 * Initialize WordPress Hooks
-	 *
-	 * Registers filters and actions used by the plugin.
-	 *
-	 * @since 3.0.0
-	 * @return void
 	 */
 	private function init_hooks() {
-		// Auto-generate and save real data when post is viewed.
-		add_action( 'wp', array( $this, 'auto_generate_data' ) );
-		
-		// Also generate when post is saved/updated.
-		add_action( 'save_post', array( $this, 'generate_on_save' ), 10, 1 );
-		
-		// Load translation files.
-		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
-	}
-
-	/**
-	 * Load Plugin Text Domain
-	 *
-	 * Loads translation files for internationalization.
-	 *
-	 * @since 3.0.0
-	 * @return void
-	 */
-	public function load_textdomain() {
-		load_plugin_textdomain(
-			'kksr-data-faker',
-			false,
-			dirname( plugin_basename( KKSR_FAKER_PLUGIN_FILE ) ) . '/languages'
-		);
+		// Track visitor views
+		add_action( 'wp', array( $this, 'track_visitor_view' ) );
 	}
 
 	/**
 	 * Get Setting Value
 	 *
-	 * Retrieves a specific setting value with optional default.
-	 *
-	 * @since  3.0.0
-	 * @param  string $key     Setting key to retrieve.
-	 * @param  mixed  $default Default value if key doesn't exist.
-	 * @return mixed           Setting value or default.
+	 * @param string $key     Setting key.
+	 * @param mixed  $default Default value.
+	 * @return mixed
 	 */
 	public function get_setting( $key, $default = '' ) {
 		return isset( $this->settings[ $key ] ) ? $this->settings[ $key ] : $default;
 	}
 
 	/**
-	 * Generate Simulation Data
+	 * Track Visitor View
 	 *
-	 * Generates fake data for a given post/product. The algorithm:
-	 * 1. Check cache for existing data
-	 * 2. Verify post type is enabled
-	 * 3. Get real sales and votes
-	 * 4. Check if thresholds are exceeded
-	 * 5. Generate consistent fake numbers using post ID as seed
-	 * 6. Combine real + fake data
-	 * 7. Cache and return result
-	 *
-	 * @since  3.0.0
-	 * @param  int $post_id Post ID to generate data for.
-	 * @return array|bool   Simulation data array or false if disabled.
+	 * Main function called on page view.
 	 */
-	/**
-	 * Auto Generate Data
-	 *
-	 * Automatically generates and saves real data to database when post/product is viewed.
-	 * Only generates if existing votes are below threshold.
-	 *
-	 * @since  3.0.0
-	 * @return void
-	 */
-	public function auto_generate_data() {
-		// Only on singular post or product pages.
-		if ( ! is_singular( array( 'post', 'product' ) ) ) {
-			return;
-		}
-
+	public function track_visitor_view() {
 		$post_id = get_the_ID();
 		if ( ! $post_id ) {
 			return;
 		}
 
-		// Only generate if no data exists yet (existing_votes = 0).
-		// Once data exists (even fake), don't regenerate to avoid overwriting real votes.
-		$existing_votes = (int) get_post_meta( $post_id, '_kksr_count_default', true );
-
-		// If data already exists, don't generate (protect existing data including real votes).
-		if ( $existing_votes > 0 ) {
-			return;
-		}
-
-		// Generate and save data only if no data exists.
-		$this->generate_and_save_data( $post_id );
-	}
-
-	/**
-	 * Generate and Save Data
-	 *
-	 * Generates random data and saves it to database as real metadata.
-	 * Only generates if existing votes are below threshold.
-	 * Works for both posts and products.
-	 *
-	 * @since  3.0.0
-	 * @param  int $post_id Post/Product ID to generate data for.
-	 * @return array|bool   Generated data array or false if disabled.
-	 */
-	public function generate_and_save_data( $post_id, $force = false ) {
-		// Only for posts and products.
 		$post_type = get_post_type( $post_id );
-		if ( ! in_array( $post_type, array( 'post', 'product' ), true ) ) {
-			return false;
+		$visitor_hash = $this->get_visitor_hash();
+		
+		if ( ! $visitor_hash ) {
+			return;
 		}
 
-		// Check threshold - don't overwrite if votes >= threshold.
-		$existing_votes = (int) get_post_meta( $post_id, '_kksr_count_default', true );
-		$threshold_votes = $this->get_setting( 'threshold_votes', 100 );
-
-		// If existing votes >= threshold, don't generate (protect real data).
-		if ( $existing_votes >= $threshold_votes ) {
-			return false;
+		// Track ratings for posts and products
+		if ( in_array( $post_type, array( 'post', 'product' ) ) ) {
+			$this->track_rating_view( $post_id, $post_type, $visitor_hash );
 		}
 
-		// If not forcing and data already exists, don't regenerate (protect existing data including real votes).
-		if ( ! $force && $existing_votes > 0 ) {
-			return false;
+		// Track sales for products only
+		if ( $post_type === 'product' ) {
+			$this->track_sales_view( $post_id, $visitor_hash );
 		}
-
-		// Generate data using post ID as random seed.
-		// This ensures same post always gets same numbers (consistency).
-		mt_srand( $post_id );
-		
-		// Get user-configured ranges.
-		$min_votes = $this->get_setting( 'min_votes', self::DEFAULT_MIN_VOTES );
-		$max_votes = $this->get_setting( 'max_votes', self::DEFAULT_MAX_VOTES );
-		$min_stars = (float) $this->get_setting( 'min_stars', self::DEFAULT_MIN_STARS );
-		$max_stars = (float) $this->get_setting( 'max_stars', self::DEFAULT_MAX_STARS );
-		
-		// Generate random values within configured ranges.
-		$casts = mt_rand( $min_votes, $max_votes );
-		
-		// Generate random float for star rating.
-		$random_star_raw = $min_stars + ( mt_rand() / mt_getrandmax() ) * ( $max_stars - $min_stars );
-		$avg = round( $random_star_raw, 1 ); // Round to 1 decimal.
-
-		// Reset random seed.
-		mt_srand();
-		
-		// Calculate total score (ratings).
-		$ratings = $casts * $avg;
-
-		// Save to database as REAL metadata.
-		update_post_meta( $post_id, '_kksr_count_default', $casts );
-		update_post_meta( $post_id, '_kksr_avg_default', $avg );
-		update_post_meta( $post_id, '_kksr_ratings_default', $ratings );
-
-		// Also save alternative keys for compatibility.
-		update_post_meta( $post_id, '_kksr_casts', $casts );
-		update_post_meta( $post_id, '_kksr_avg', $avg );
-		update_post_meta( $post_id, '_kksr_ratings', $ratings );
-
-		return array(
-			'casts'   => $casts,
-			'avg'     => $avg,
-			'ratings' => $ratings,
-		);
 	}
 
 	/**
-	 * Generate Data on Post/Product Save
+	 * Track Rating View
 	 *
-	 * Generates and saves data when a post or product is saved or updated.
-	 * Only generates if existing votes are below threshold.
-	 *
-	 * @since  3.0.0
-	 * @param  int $post_id Post/Product ID being saved.
-	 * @return void
+	 * @param int    $post_id      Post ID.
+	 * @param string $post_type    Post type.
+	 * @param string $visitor_hash Visitor hash.
 	 */
-	public function generate_on_save( $post_id ) {
-		// Only for posts and products.
-		$post_type = get_post_type( $post_id );
-		if ( ! in_array( $post_type, array( 'post', 'product' ), true ) ) {
+	private function track_rating_view( $post_id, $post_type, $visitor_hash ) {
+		if ( ! $this->get_setting( 'rating_auto_increment', true ) ) {
 			return;
 		}
 
-		// Skip autosaves and revisions.
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-			return;
+		if ( $this->should_increment( $visitor_hash, $post_id, 'rating' ) ) {
+			$this->increment_rating_count( $post_id );
+			$this->log_visitor( $visitor_hash, $post_id, $post_type, 'rating' );
+			$this->mark_session_viewed( $post_id, 'rating' );
 		}
-
-		// Only generate if no data exists yet (existing_votes = 0).
-		// Once data exists, don't regenerate to avoid overwriting real votes.
-		$existing_votes = (int) get_post_meta( $post_id, '_kksr_count_default', true );
-
-		// If data already exists, don't generate (protect existing data including real votes).
-		if ( $existing_votes > 0 ) {
-			return;
-		}
-
-		// Generate and save data only if no data exists.
-		$this->generate_and_save_data( $post_id );
 	}
 
 	/**
-	 * Generate Data for All Posts and Products on Activation
+	 * Track Sales View
 	 *
-	 * Generates and saves data for all existing posts and products when plugin is activated.
-	 * Only generates for items with votes below threshold.
-	 *
-	 * @since  3.0.0
-	 * @return void
+	 * @param int    $product_id   Product ID.
+	 * @param string $visitor_hash Visitor hash.
 	 */
-	public static function generate_all_posts_on_activation() {
-		// Check if constant is defined (should be defined in main plugin file).
-		if ( ! defined( 'KKSR_FAKER_PLUGIN_DIR' ) ) {
+	private function track_sales_view( $product_id, $visitor_hash ) {
+		if ( ! $this->get_setting( 'sales_auto_increment', true ) ) {
 			return;
 		}
+
+		if ( $this->should_increment( $visitor_hash, $product_id, 'sales' ) ) {
+			$this->increment_sales_count( $product_id );
+			$this->log_visitor( $visitor_hash, $product_id, 'product', 'sales' );
+			$this->mark_session_viewed( $product_id, 'sales' );
+		}
+	}
+
+	/**
+	 * Get Visitor Hash
+	 *
+	 * @return string|false
+	 */
+	private function get_visitor_hash() {
+		$ip = $_SERVER['REMOTE_ADDR'] ?? '';
+		$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 		
-		// Get instance (class should already be loaded by activation callback).
-		$faker = self::get_instance();
+		if ( empty( $ip ) || empty( $user_agent ) ) {
+			return false;
+		}
+
+		return md5( $ip . $user_agent );
+	}
+
+	/**
+	 * Should Increment
+	 *
+	 * @param string $visitor_hash Visitor hash.
+	 * @param int    $object_id    Object ID.
+	 * @param string $data_type    Data type (rating/sales).
+	 * @return bool
+	 */
+	private function should_increment( $visitor_hash, $object_id, $data_type ) {
+		// Check session (prevent F5)
+		if ( $this->is_session_viewed( $object_id, $data_type ) ) {
+			return false;
+		}
+
+		// Check threshold
+		$threshold_key = $data_type . '_threshold';
+		$threshold = (int) $this->get_setting( $threshold_key, 100 );
 		
-		// Get all published posts.
-		$posts = get_posts(
+		if ( $data_type === 'rating' ) {
+			$current = (int) get_post_meta( $object_id, '_kksr_count_default', true );
+		} else {
+			$current = (int) get_post_meta( $object_id, 'total_sales', true );
+		}
+		
+		if ( $current >= $threshold ) {
+			return false;
+		}
+
+		// Check cooldown
+		global $wpdb;
+		
+		$cooldown_key = $data_type . '_cooldown_days';
+		$cooldown_days = (int) $this->get_setting( $cooldown_key, self::DEFAULT_COOLDOWN_DAYS );
+		$cooldown_date = gmdate( 'Y-m-d H:i:s', strtotime( "-{$cooldown_days} days" ) );
+		
+		$last_view = $wpdb->get_var( $wpdb->prepare(
+			"SELECT last_view_time FROM {$this->table_name} 
+			WHERE visitor_hash = %s AND object_id = %d AND data_type = %s",
+			$visitor_hash,
+			$object_id,
+			$data_type
+		) );
+
+		if ( ! $last_view || $last_view < $cooldown_date ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Increment Rating Count
+	 *
+	 * Increments rating count with random stars and calculates new average.
+	 * Updates all KKSR meta fields for full compatibility.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	private function increment_rating_count( $post_id ) {
+		// Get current values
+		$current_count = (int) get_post_meta( $post_id, '_kksr_count_default', true );
+		$current_avg = (float) get_post_meta( $post_id, '_kksr_avg_default', true );
+		
+		// Random stars between min-max
+		$min_stars = (int) $this->get_setting( 'rating_min_stars', 4 );
+		$max_stars = (int) $this->get_setting( 'rating_max_stars', 5 );
+		$new_stars = rand( $min_stars, $max_stars );
+		
+		// Calculate new average
+		// Formula: (current_avg * current_count + new_stars) / (current_count + 1)
+		$current_total = $current_avg * $current_count;
+		$new_total = $current_total + $new_stars;
+		$new_count = $current_count + 1;
+		$new_avg = $new_count > 0 ? $new_total / $new_count : $new_stars;
+		
+		// Update main fields
+		update_post_meta( $post_id, '_kksr_count_default', $new_count );
+		update_post_meta( $post_id, '_kksr_avg_default', $new_avg );
+		update_post_meta( $post_id, '_kksr_ratings_default', $new_total );  // Total stars
+		update_post_meta( $post_id, '_kksr_casts', $new_count );  // Vote count
+		
+		// Update legacy fields for backward compatibility
+		update_post_meta( $post_id, '_kksr_avg', $new_avg );
+		update_post_meta( $post_id, '_kksr_ratings', $new_total );
+	}
+
+	/**
+	 * Increment Sales Count
+	 *
+	 * @param int $product_id Product ID.
+	 */
+	private function increment_sales_count( $product_id ) {
+		$current = (int) get_post_meta( $product_id, 'total_sales', true );
+		$new_count = $current + 1;
+		
+		update_post_meta( $product_id, 'total_sales', $new_count );
+	}
+
+	/**
+	 * Log Visitor
+	 *
+	 * @param string $visitor_hash Visitor hash.
+	 * @param int    $object_id    Object ID.
+	 * @param string $object_type  Object type.
+	 * @param string $data_type    Data type.
+	 */
+	private function log_visitor( $visitor_hash, $object_id, $object_type, $data_type ) {
+		global $wpdb;
+		
+		$now = current_time( 'mysql', 1 );
+		
+		$wpdb->replace(
+			$this->table_name,
 			array(
-				'post_type'      => 'post',
-				'posts_per_page' => -1,
-				'post_status'    => 'publish',
-			)
+				'visitor_hash'   => $visitor_hash,
+				'object_id'      => $object_id,
+				'object_type'    => $object_type,
+				'data_type'      => $data_type,
+				'last_view_time' => $now,
+			),
+			array( '%s', '%d', '%s', '%s', '%s' )
 		);
-
-		// Generate data for each post (only if below threshold).
-		foreach ( $posts as $post ) {
-			$faker->generate_and_save_data( $post->ID );
-		}
-
-		// Get all published products (if WooCommerce is active).
-		if ( post_type_exists( 'product' ) ) {
-			$products = get_posts(
-				array(
-					'post_type'      => 'product',
-					'posts_per_page' => -1,
-					'post_status'    => 'publish',
-				)
-			);
-
-			// Generate data for each product (only if below threshold).
-			foreach ( $products as $product ) {
-				$faker->generate_and_save_data( $product->ID );
-			}
-		}
 	}
 
 	/**
-	 * Regenerate All Data with New Settings
+	 * Check if Session Viewed
 	 *
-	 * Regenerates data for all posts and products with votes below threshold.
-	 * Used when settings are updated to apply new min/max ranges.
-	 *
-	 * @since  3.0.0
-	 * @return void
+	 * @param int    $object_id Object ID.
+	 * @param string $data_type Data type.
+	 * @return bool
 	 */
-	public function regenerate_all_data() {
-		// Reload settings from database to get latest values.
-		$this->load_settings();
-
-		// Get all published posts.
-		$posts = get_posts(
-			array(
-				'post_type'      => 'post',
-				'posts_per_page' => -1,
-				'post_status'    => 'publish',
-			)
-		);
-
-		// Regenerate data for each post (force regenerate if below threshold).
-		foreach ( $posts as $post ) {
-			$this->generate_and_save_data( $post->ID, true );
+	private function is_session_viewed( $object_id, $data_type ) {
+		if ( ! isset( $_SESSION ) ) {
+			session_start();
 		}
+		
+		$key = $data_type . '_' . $object_id;
+		return isset( $_SESSION['kksr_viewed'][ $key ] );
+	}
 
-		// Get all published products (if WooCommerce is active).
-		if ( post_type_exists( 'product' ) ) {
-			$products = get_posts(
-				array(
-					'post_type'      => 'product',
-					'posts_per_page' => -1,
-					'post_status'    => 'publish',
-				)
-			);
-
-			// Regenerate data for each product (force regenerate if below threshold).
-			foreach ( $products as $product ) {
-				$this->generate_and_save_data( $product->ID, true );
-			}
+	/**
+	 * Mark Session Viewed
+	 *
+	 * @param int    $object_id Object ID.
+	 * @param string $data_type Data type.
+	 */
+	private function mark_session_viewed( $object_id, $data_type ) {
+		if ( ! isset( $_SESSION ) ) {
+			session_start();
 		}
+		
+		if ( ! isset( $_SESSION['kksr_viewed'] ) ) {
+			$_SESSION['kksr_viewed'] = array();
+		}
+		
+		$key = $data_type . '_' . $object_id;
+		$_SESSION['kksr_viewed'][ $key ] = time();
+	}
+
+	/**
+	 * Create Database Table
+	 */
+	public static function create_visitor_table() {
+		global $wpdb;
+		
+		$table_name = $wpdb->prefix . 'kksr_visitor_log';
+		$charset_collate = $wpdb->get_charset_collate();
+		
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+			id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			visitor_hash VARCHAR(64) NOT NULL,
+			object_id BIGINT UNSIGNED NOT NULL,
+			object_type VARCHAR(20) NOT NULL,
+			data_type VARCHAR(20) NOT NULL,
+			last_view_time DATETIME NOT NULL,
+			UNIQUE KEY unique_visitor_object (visitor_hash, object_id, data_type),
+			KEY idx_object (object_id, data_type)
+		) {$charset_collate};";
+		
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		dbDelta( $sql );
 	}
 }

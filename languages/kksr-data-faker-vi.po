@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: KKSR Data Faker 3.0.0\n"
 "Report-Msgid-Bugs-To: https://github.com/MaiSyDat/kksr-data-faker/issues\n"
 "POT-Creation-Date: 2026-01-15 12:00:00+00:00\n"
-"PO-Revision-Date: 2026-01-15 12:00:00+0000\n"
+"PO-Revision-Date: 2026-01-16 09:05+0000\n"
 "Last-Translator: MaiSyDat <admin@hupuna.com>\n"
 "Language-Team: Tiếng Việt\n"
 "Language: vi\n"
@@ -14,11 +14,48 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.0\n"
+"X-Generator: Loco https://localise.biz/"
 
-#: includes/class-kksr-admin.php:82
-msgid "Settings"
-msgstr "Cài đặt"
+#: includes/class-kksr-frontend.php:103
+msgid "%s vote"
+msgid_plural "%s votes"
+msgstr[0] "%s bình chọn"
+
+#: includes/class-kksr-admin.php:431
+msgid "Actions"
+msgstr "Hành động"
+
+#: includes/class-kksr-admin.php:362
+msgid "All data has been regenerated with current settings."
+msgstr "Tất cả dữ liệu đã được tái tạo với cài đặt hiện tại."
+
+#: includes/class-kksr-admin.php:154
+msgid ""
+"Configure the range for generated ratings and votes (KK Star Ratings for "
+"posts and products)."
+msgstr ""
+"Cấu hình khoảng cho đánh giá và bình chọn được tạo (KK Star Ratings cho bài "
+"viết và sản phẩm)."
+
+#: includes/class-kksr-admin.php:314
+msgid ""
+"Data is saved to wp_postmeta with keys: _kksr_count_default, "
+"_kksr_avg_default, _kksr_ratings_default."
+msgstr ""
+"Dữ liệu được lưu vào wp_postmeta với các key: _kksr_count_default, "
+"_kksr_avg_default, _kksr_ratings_default."
+
+#: includes/class-kksr-admin.php:166
+msgid "General plugin settings and thresholds."
+msgstr "Cài đặt chung và ngưỡng của plugin."
+
+#: includes/class-kksr-admin.php:137
+msgid "General Settings"
+msgstr "Cài đặt chung"
+
+#: includes/class-kksr-admin.php:312
+msgid "How it works:"
+msgstr "Cách hoạt động:"
 
 #: includes/class-kksr-admin.php:97
 msgid "KKSR Data Faker Settings"
@@ -28,33 +65,9 @@ msgstr "Cài đặt KKSR Data Faker"
 msgid "KKSR Faker"
 msgstr "KKSR Faker"
 
-#: includes/class-kksr-admin.php:124
-msgid "Rating Simulation Settings"
-msgstr "Cài đặt giả lập đánh giá"
-
-#: includes/class-kksr-admin.php:129
-msgid "Minimum Vote Count"
-msgstr "Số lượt đánh giá tối thiểu"
-
-#: includes/class-kksr-admin.php:129
-msgid "Minimum number of votes/reviews to generate"
-msgstr "Số lượt đánh giá/bình chọn giả lập tối thiểu"
-
-#: includes/class-kksr-admin.php:130
-msgid "Maximum Vote Count"
-msgstr "Số lượt đánh giá tối đa"
-
 #: includes/class-kksr-admin.php:130
 msgid "Maximum number of votes/reviews to generate"
 msgstr "Số lượt đánh giá/bình chọn giả lập tối đa"
-
-#: includes/class-kksr-admin.php:131
-msgid "Minimum Star Rating"
-msgstr "Số sao tối thiểu"
-
-#: includes/class-kksr-admin.php:131
-msgid "Minimum star rating (1.0 - 5.0)"
-msgstr "Đánh giá sao tối thiểu (1.0 - 5.0)"
 
 #: includes/class-kksr-admin.php:132
 msgid "Maximum Star Rating"
@@ -64,45 +77,77 @@ msgstr "Số sao tối đa"
 msgid "Maximum star rating (1.0 - 5.0)"
 msgstr "Đánh giá sao tối đa (1.0 - 5.0)"
 
-#: includes/class-kksr-admin.php:137
-msgid "General Settings"
-msgstr "Cài đặt chung"
+#: includes/class-kksr-admin.php:130
+msgid "Maximum Vote Count"
+msgstr "Số lượt đánh giá tối đa"
 
-#: includes/class-kksr-admin.php:142
-msgid "Real Votes Threshold"
-msgstr "Ngưỡng đánh giá thực"
+#: includes/class-kksr-admin.php:129
+msgid "Minimum number of votes/reviews to generate"
+msgstr "Số lượt đánh giá/bình chọn giả lập tối thiểu"
 
-#: includes/class-kksr-admin.php:142
-msgid "Posts with votes equal to or greater than this number will not be overwritten (default: 100)"
-msgstr "Các bài viết có số lượt đánh giá bằng hoặc lớn hơn số này sẽ không bị ghi đè (mặc định: 100)"
+#: includes/class-kksr-admin.php:131
+msgid "Minimum Star Rating"
+msgstr "Số sao tối thiểu"
 
-#: includes/class-kksr-admin.php:154
-msgid "Configure the range for generated ratings and votes (KK Star Ratings for posts and products)."
-msgstr "Cấu hình khoảng cho đánh giá và bình chọn được tạo (KK Star Ratings cho bài viết và sản phẩm)."
-
-#: includes/class-kksr-admin.php:166
-msgid "General plugin settings and thresholds."
-msgstr "Cài đặt chung và ngưỡng của plugin."
-
-#: includes/class-kksr-admin.php:277
-msgid "Minimum vote count must be less than maximum vote count."
-msgstr "Số lượt đánh giá tối thiểu phải nhỏ hơn số lượt đánh giá tối đa."
+#: includes/class-kksr-admin.php:131
+msgid "Minimum star rating (1.0 - 5.0)"
+msgstr "Đánh giá sao tối thiểu (1.0 - 5.0)"
 
 #: includes/class-kksr-admin.php:286
 msgid "Minimum star rating must be less than maximum star rating."
 msgstr "Đánh giá sao tối thiểu phải nhỏ hơn đánh giá sao tối đa."
 
+#: includes/class-kksr-admin.php:129
+msgid "Minimum Vote Count"
+msgstr "Số lượt đánh giá tối thiểu"
+
+#: includes/class-kksr-admin.php:277
+msgid "Minimum vote count must be less than maximum vote count."
+msgstr "Số lượt đánh giá tối thiểu phải nhỏ hơn số lượt đánh giá tối đa."
+
+#: includes/class-kksr-admin.php:142
+msgid ""
+"Posts with votes equal to or greater than this number will not be "
+"overwritten (default: 100)"
+msgstr ""
+"Các bài viết có số lượt đánh giá bằng hoặc lớn hơn số này sẽ không bị ghi đè "
+"(mặc định: 100)"
+
+#: includes/class-kksr-admin.php:124
+msgid "Rating Simulation Settings"
+msgstr "Cài đặt giả lập đánh giá"
+
+#: includes/class-kksr-admin.php:317
+msgid ""
+"Real data protection: If a post already has votes equal to or greater than "
+"the real votes threshold, the plugin will NOT overwrite the data."
+msgstr ""
+"Bảo vệ dữ liệu thật: Nếu bài viết đã có số lượt đánh giá bằng hoặc lớn hơn "
+"ngưỡng đánh giá thực, plugin sẽ KHÔNG ghi đè dữ liệu."
+
+#: includes/class-kksr-admin.php:142
+msgid "Real Votes Threshold"
+msgstr "Ngưỡng đánh giá thực"
+
+#: includes/class-kksr-admin.php:436
+msgid "Regenerate All Data"
+msgstr "Tái tạo tất cả dữ liệu"
+
+#: includes/class-kksr-admin.php:432
+msgid ""
+"Regenerate all data with current settings. This will update all posts and "
+"products with votes below the threshold."
+msgstr ""
+"Tái tạo tất cả dữ liệu với cài đặt hiện tại. Điều này sẽ cập nhật tất cả bài "
+"viết và sản phẩm có số lượt đánh giá dưới ngưỡng."
+
 #: includes/class-kksr-admin.php:344
 msgid "Security check failed."
 msgstr "Kiểm tra bảo mật thất bại."
 
-#: includes/class-kksr-admin.php:349
-msgid "You do not have sufficient permissions."
-msgstr "Bạn không có đủ quyền."
-
-#: includes/class-kksr-admin.php:362
-msgid "All data has been regenerated with current settings."
-msgstr "Tất cả dữ liệu đã được tái tạo với cài đặt hiện tại."
+#: includes/class-kksr-admin.php:82
+msgid "Settings"
+msgstr "Cài đặt"
 
 #: includes/class-kksr-admin.php:388
 msgid "Settings saved. All data has been regenerated with new ranges."
@@ -112,32 +157,6 @@ msgstr "Đã lưu cài đặt. Tất cả dữ liệu đã được tái tạo v
 msgid "You do not have sufficient permissions to access this page."
 msgstr "Bạn không có quyền truy cập trang này."
 
-#: includes/class-kksr-admin.php:431
-msgid "Actions"
-msgstr "Hành động"
-
-#: includes/class-kksr-admin.php:432
-msgid "Regenerate all data with current settings. This will update all posts and products with votes below the threshold."
-msgstr "Tái tạo tất cả dữ liệu với cài đặt hiện tại. Điều này sẽ cập nhật tất cả bài viết và sản phẩm có số lượt đánh giá dưới ngưỡng."
-
-#: includes/class-kksr-admin.php:436
-msgid "Regenerate All Data"
-msgstr "Tái tạo tất cả dữ liệu"
-
-#: includes/class-kksr-admin.php:312
-msgid "How it works:"
-msgstr "Cách hoạt động:"
-
-#: includes/class-kksr-admin.php:314
-msgid "Data is saved to wp_postmeta with keys: _kksr_count_default, _kksr_avg_default, _kksr_ratings_default."
-msgstr "Dữ liệu được lưu vào wp_postmeta với các key: _kksr_count_default, _kksr_avg_default, _kksr_ratings_default."
-
-#: includes/class-kksr-admin.php:317
-msgid "Real data protection: If a post already has votes equal to or greater than the real votes threshold, the plugin will NOT overwrite the data."
-msgstr "Bảo vệ dữ liệu thật: Nếu bài viết đã có số lượt đánh giá bằng hoặc lớn hơn ngưỡng đánh giá thực, plugin sẽ KHÔNG ghi đè dữ liệu."
-
-#: includes/class-kksr-frontend.php:103
-msgid "%s vote"
-msgid_plural "%s votes"
-msgstr[0] "%s bình chọn"
-msgstr[1] "%s bình chọn"
+#: includes/class-kksr-admin.php:349
+msgid "You do not have sufficient permissions."
+msgstr "Bạn không có đủ quyền."

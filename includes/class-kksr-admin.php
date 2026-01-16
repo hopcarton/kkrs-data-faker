@@ -1,44 +1,29 @@
 <?php
 /**
- * Admin Class
+ * Admin Interface Class
  *
- * Handles all administrative functionality including:
- * - Settings page creation and rendering
- * - Settings registration with WordPress Settings API
- * - Input sanitization and validation
- * - Admin CSS enqueuing
+ * Handles admin settings page with tabbed interface for ratings and sales.
  *
  * @package KKSR_Data_Faker
- * @since   3.0.0
+ * @since   4.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit; // Exit if accessed directly.
+	exit;
 }
 
 /**
  * Class KKSR_Admin
- *
- * Manages the admin interface and settings for the plugin.
- * Uses Singleton pattern to ensure single instance.
- *
- * @since 3.0.0
  */
 class KKSR_Admin {
 
 	/**
 	 * Singleton Instance
-	 *
-	 * @since 3.0.0
-	 * @var   KKSR_Admin|null
 	 */
 	private static $instance = null;
 
 	/**
-	 * Get Singleton Instance
-	 *
-	 * @since  3.0.0
-	 * @return KKSR_Admin Single instance of the class.
+	 * Get Instance
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -49,73 +34,29 @@ class KKSR_Admin {
 
 	/**
 	 * Constructor
-	 *
-	 * Private constructor to prevent direct instantiation.
-	 * Registers all admin hooks and filters.
-	 *
-	 * @since 3.0.0
 	 */
 	private function __construct() {
-		// Add settings page to admin menu.
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
-		
-		// Register settings with WordPress.
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
-		
-		// Enqueue admin CSS.
-		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
-		
-		// Add "Settings" link to plugins page.
-		add_filter( 'plugin_action_links_' . plugin_basename( KKSR_FAKER_PLUGIN_FILE ), array( $this, 'add_action_links' ) );
-		
-		// Regenerate all data when settings are updated.
-		add_action( 'update_option_kksr_faker_settings', array( $this, 'handle_settings_update' ), 10, 2 );
-		
-		// Also hook into admin_init to check if we need to regenerate after settings save.
-		add_action( 'admin_init', array( $this, 'maybe_regenerate_after_save' ) );
-	}
-
-	/**
-	 * Add Plugin Action Links
-	 *
-	 * Adds a "Settings" link to the plugin row on the plugins page.
-	 *
-	 * @since  3.0.0
-	 * @param  array $links Existing plugin action links.
-	 * @return array        Modified links array with Settings link added.
-	 */
-	public function add_action_links( $links ) {
-		$settings_link = '<a href="' . admin_url( 'options-general.php?page=kksr-data-faker' ) . '">' . __( 'Settings', 'kksr-data-faker' ) . '</a>';
-		array_unshift( $links, $settings_link );
-		return $links;
 	}
 
 	/**
 	 * Add Admin Menu
-	 *
-	 * Registers settings page under Settings menu in WordPress admin.
-	 *
-	 * @since  3.0.0
-	 * @return void
 	 */
 	public function add_admin_menu() {
-		add_options_page(
-			__( 'KKSR Data Faker Settings', 'kksr-data-faker' ), // Page title.
-			__( 'KKSR Faker', 'kksr-data-faker' ),                // Menu title.
-			'manage_options',                                      // Capability required.
-			'kksr-data-faker',                                     // Menu slug.
-			array( $this, 'render_settings_page' )                 // Callback function.
+		add_menu_page(
+			__( 'KKSR Data Faker', 'kksr-data-faker' ),
+			__( 'KKSR Faker', 'kksr-data-faker' ),
+			'manage_options',
+			'kksr-data-faker',
+			array( $this, 'render_settings_page' ),
+			'dashicons-star-filled',
+			80
 		);
 	}
 
 	/**
 	 * Register Settings
-	 *
-	 * Registers all plugin settings, sections, and fields with WordPress Settings API.
-	 * Organizes settings into two sections: Ratings and General.
-	 *
-	 * @since  3.0.0
-	 * @return void
 	 */
 	public function register_settings() {
 		register_setting(
@@ -123,345 +64,248 @@ class KKSR_Admin {
 			'kksr_faker_settings',
 			array( $this, 'sanitize_settings' )
 		);
-
-		// Rating Settings Section
-		add_settings_section(
-			'kksr_faker_rating_section',
-			__( 'Rating Simulation Settings', 'kksr-data-faker' ),
-			array( $this, 'render_rating_section' ),
-			'kksr-data-faker'
-		);
-
-		add_settings_field( 'min_votes', __( 'Minimum Vote Count', 'kksr-data-faker' ), array( $this, 'render_number_field' ), 'kksr-data-faker', 'kksr_faker_rating_section', array( 'field' => 'min_votes', 'description' => __( 'Minimum number of votes/reviews to generate', 'kksr-data-faker' ) ) );
-		add_settings_field( 'max_votes', __( 'Maximum Vote Count', 'kksr-data-faker' ), array( $this, 'render_number_field' ), 'kksr-data-faker', 'kksr_faker_rating_section', array( 'field' => 'max_votes', 'description' => __( 'Maximum number of votes/reviews to generate', 'kksr-data-faker' ) ) );
-		add_settings_field( 'min_stars', __( 'Minimum Star Rating', 'kksr-data-faker' ), array( $this, 'render_number_field' ), 'kksr-data-faker', 'kksr_faker_rating_section', array( 'field' => 'min_stars', 'description' => __( 'Minimum star rating (1.0 - 5.0)', 'kksr-data-faker' ), 'step' => '0.1', 'min' => '1.0', 'max' => '5.0' ) );
-		add_settings_field( 'max_stars', __( 'Maximum Star Rating', 'kksr-data-faker' ), array( $this, 'render_number_field' ), 'kksr-data-faker', 'kksr_faker_rating_section', array( 'field' => 'max_stars', 'description' => __( 'Maximum star rating (1.0 - 5.0)', 'kksr-data-faker' ), 'step' => '0.1', 'min' => '1.0', 'max' => '5.0' ) );
-
-		// General Settings Section
-		add_settings_section(
-			'kksr_faker_general_section',
-			__( 'General Settings', 'kksr-data-faker' ),
-			array( $this, 'render_general_section' ),
-			'kksr-data-faker'
-		);
-
-		add_settings_field( 'threshold_votes', __( 'Real Votes Threshold', 'kksr-data-faker' ), array( $this, 'render_number_field' ), 'kksr-data-faker', 'kksr_faker_general_section', array( 'field' => 'threshold_votes', 'description' => __( 'Posts with votes equal to or greater than this number will not be overwritten (default: 100)', 'kksr-data-faker' ) ) );
-	}
-
-	/**
-	 * Render Rating Section Description
-	 *
-	 * Displays introductory text for the rating settings section.
-	 *
-	 * @since 3.0.0
-	 * @return void
-	 */
-	public function render_rating_section() {
-		echo '<p>' . esc_html__( 'Configure the range for generated ratings and votes (KK Star Ratings for posts and products).', 'kksr-data-faker' ) . '</p>';
-	}
-
-	/**
-	 * Render General Section Description
-	 *
-	 * Displays introductory text for the general settings section.
-	 *
-	 * @since 3.0.0
-	 * @return void
-	 */
-	public function render_general_section() {
-		echo '<p>' . esc_html__( 'General plugin settings and thresholds.', 'kksr-data-faker' ) . '</p>';
-	}
-
-	/**
-	 * Render Number Input Field
-	 *
-	 * Generates HTML for a number input field in the settings form.
-	 *
-	 * @since  3.0.0
-	 * @param  array $args {
-	 *     Field configuration arguments.
-	 *
-	 *     @type string $field       Field name/key.
-	 *     @type string $description Help text for the field.
-	 *     @type string $step        Input step value (default: 1).
-	 *     @type string $min         Minimum allowed value (default: 0).
-	 *     @type string $max         Maximum allowed value (default: 10000).
-	 * }
-	 * @return void
-	 */
-	public function render_number_field( $args ) {
-		$settings = get_option( 'kksr_faker_settings', array() );
-		$field    = $args['field'];
-		$value    = isset( $settings[ $field ] ) ? $settings[ $field ] : '';
-		$step     = isset( $args['step'] ) ? $args['step'] : '1';
-		$min      = isset( $args['min'] ) ? $args['min'] : '0';
-		$max      = isset( $args['max'] ) ? $args['max'] : '10000';
-		
-		printf(
-			'<input type="number" name="kksr_faker_settings[%s]" value="%s" step="%s" min="%s" max="%s" class="regular-text" />',
-			esc_attr( $field ),
-			esc_attr( $value ),
-			esc_attr( $step ),
-			esc_attr( $min ),
-			esc_attr( $max )
-		);
-
-		if ( isset( $args['description'] ) ) {
-			printf( '<p class="description">%s</p>', esc_html( $args['description'] ) );
-		}
-	}
-
-	/**
-	 * Render Checkbox Field
-	 *
-	 * Generates HTML for a checkbox input field in the settings form.
-	 *
-	 * @since  3.0.0
-	 * @param  array $args {
-	 *     Field configuration arguments.
-	 *
-	 *     @type string $field       Field name/key.
-	 *     @type string $description Label text for the checkbox.
-	 * }
-	 * @return void
-	 */
-	public function render_checkbox_field( $args ) {
-		$settings = get_option( 'kksr_faker_settings', array() );
-		$field    = $args['field'];
-		$value    = isset( $settings[ $field ] ) ? $settings[ $field ] : 0;
-		$checked  = checked( 1, $value, false );
-
-		printf(
-			'<label><input type="checkbox" name="kksr_faker_settings[%s]" value="1" %s /> %s</label>',
-			esc_attr( $field ),
-			$checked,
-			esc_html( $args['description'] )
-		);
 	}
 
 	/**
 	 * Sanitize Settings
-	 *
-	 * Sanitizes and validates user input from settings form.
-	 * Ensures data integrity before saving to database.
-	 *
-	 * Validation Rules:
-	 * - Numeric fields: Cast to absolute integer
-	 * - Float fields: Cast to float, clamped between 1.0-5.0
-	 * - Checkboxes: Convert to 1 or 0
-	 * - Range validation: Min must be less than Max
-	 *
-	 * @since  3.0.0
-	 * @param  array $input Raw user input from form.
-	 * @return array        Sanitized settings array.
 	 */
 	public function sanitize_settings( $input ) {
 		$sanitized = array();
 
-		// Sanitize integer fields.
-		$numeric_fields = array( 'min_votes', 'max_votes', 'threshold_votes' );
-		foreach ( $numeric_fields as $field ) {
-			if ( isset( $input[ $field ] ) ) {
-				$sanitized[ $field ] = absint( $input[ $field ] ); // Convert to absolute integer.
-			}
-		}
+		// Ratings settings
+		$sanitized['rating_auto_increment'] = isset( $input['rating_auto_increment'] ) ? (bool) $input['rating_auto_increment'] : false;
+		$sanitized['rating_cooldown_days'] = isset( $input['rating_cooldown_days'] ) ? absint( $input['rating_cooldown_days'] ) : 7;
+		$sanitized['rating_threshold'] = isset( $input['rating_threshold'] ) ? absint( $input['rating_threshold'] ) : 100;
+		$sanitized['rating_min_stars'] = isset( $input['rating_min_stars'] ) ? absint( $input['rating_min_stars'] ) : 4;
+		$sanitized['rating_max_stars'] = isset( $input['rating_max_stars'] ) ? absint( $input['rating_max_stars'] ) : 5;
 
-		// Sanitize float fields (star ratings).
-		$float_fields = array( 'min_stars', 'max_stars' );
-		foreach ( $float_fields as $field ) {
-			if ( isset( $input[ $field ] ) ) {
-				$value                = floatval( $input[ $field ] );
-				$sanitized[ $field ] = max( 1.0, min( 5.0, $value ) ); // Clamp between 1.0-5.0.
-			}
-		}
+		// Sales settings
+		$sanitized['sales_auto_increment'] = isset( $input['sales_auto_increment'] ) ? (bool) $input['sales_auto_increment'] : false;
+		$sanitized['sales_cooldown_days'] = isset( $input['sales_cooldown_days'] ) ? absint( $input['sales_cooldown_days'] ) : 7;
+		$sanitized['sales_threshold'] = isset( $input['sales_threshold'] ) ? absint( $input['sales_threshold'] ) : 50;
 
-		// Validate: Minimum must be less than Maximum.
-		if ( isset( $sanitized['min_votes'], $sanitized['max_votes'] ) && $sanitized['min_votes'] >= $sanitized['max_votes'] ) {
-			add_settings_error(
-				'kksr_faker_settings',
-				'invalid_votes_range',
-				__( 'Minimum vote count must be less than maximum vote count.', 'kksr-data-faker' ),
-				'error'
-			);
+		// Validate cooldown (minimum 1 day)
+		if ( $sanitized['rating_cooldown_days'] < 1 ) {
+			$sanitized['rating_cooldown_days'] = 1;
 		}
-
-		if ( isset( $sanitized['min_stars'], $sanitized['max_stars'] ) && $sanitized['min_stars'] >= $sanitized['max_stars'] ) {
-			add_settings_error(
-				'kksr_faker_settings',
-				'invalid_stars_range',
-				__( 'Minimum star rating must be less than maximum star rating.', 'kksr-data-faker' ),
-				'error'
-			);
+		if ( $sanitized['sales_cooldown_days'] < 1 ) {
+			$sanitized['sales_cooldown_days'] = 1;
 		}
-
-		// Set flag to regenerate after settings are saved.
-		if ( ! empty( $sanitized ) ) {
-			set_transient( 'kksr_faker_regenerate_after_save', true, 60 ); // Expire after 60 seconds.
+		
+		// Validate stars range (1-5)
+		if ( $sanitized['rating_min_stars'] < 1 ) $sanitized['rating_min_stars'] = 1;
+		if ( $sanitized['rating_min_stars'] > 5 ) $sanitized['rating_min_stars'] = 5;
+		if ( $sanitized['rating_max_stars'] < 1 ) $sanitized['rating_max_stars'] = 1;
+		if ( $sanitized['rating_max_stars'] > 5 ) $sanitized['rating_max_stars'] = 5;
+		
+		// Ensure min <= max
+		if ( $sanitized['rating_min_stars'] > $sanitized['rating_max_stars'] ) {
+			$temp = $sanitized['rating_min_stars'];
+			$sanitized['rating_min_stars'] = $sanitized['rating_max_stars'];
+			$sanitized['rating_max_stars'] = $temp;
 		}
 
 		return $sanitized;
 	}
 
 	/**
-	 * Handle Settings Update
-	 *
-	 * Regenerates all data when settings are saved to apply new ranges.
-	 * Only regenerates posts/products with votes below threshold.
-	 *
-	 * @since  3.0.0
-	 * @param  array $old_value Previous settings value.
-	 * @param  array $new_value New settings value.
-	 * @return void
-	 */
-	public function handle_settings_update( $old_value, $new_value ) {
-		// Get instance of data faker.
-		$faker = KKSR_Data_Faker::get_instance();
-		
-		// Regenerate all data with new settings (only for items below threshold).
-		$faker->regenerate_all_data();
-	}
-
-	/**
-	 * Maybe Regenerate After Save
-	 *
-	 * Checks if settings were just saved and triggers regeneration.
-	 * Also handles manual regenerate action.
-	 * This is a backup method in case update_option hook doesn't fire.
-	 *
-	 * @since  3.0.0
-	 * @return void
-	 */
-	public function maybe_regenerate_after_save() {
-		// Only on our settings page.
-		if ( ! isset( $_GET['page'] ) || 'kksr-data-faker' !== $_GET['page'] ) {
-			return;
-		}
-
-		// Handle manual regenerate action.
-		if ( isset( $_POST['kksr_faker_action'] ) && 'regenerate_all' === $_POST['kksr_faker_action'] ) {
-			// Verify nonce.
-			if ( ! isset( $_POST['kksr_faker_regenerate_nonce'] ) || ! wp_verify_nonce( $_POST['kksr_faker_regenerate_nonce'], 'kksr_faker_regenerate' ) ) {
-				wp_die( esc_html__( 'Security check failed.', 'kksr-data-faker' ) );
-			}
-
-			// Check user permissions.
-			if ( ! current_user_can( 'manage_options' ) ) {
-				wp_die( esc_html__( 'You do not have sufficient permissions.', 'kksr-data-faker' ) );
-			}
-
-			// Get instance of data faker.
-			$faker = KKSR_Data_Faker::get_instance();
-			
-			// Regenerate all data with current settings (only for items below threshold).
-			$faker->regenerate_all_data();
-			
-			// Add success message.
-			add_settings_error(
-				'kksr_faker_settings',
-				'regenerated',
-				__( 'All data has been regenerated with current settings.', 'kksr-data-faker' ),
-				'success'
-			);
-
-			// Redirect to prevent resubmission.
-			wp_safe_redirect( add_query_arg( 'regenerated', 'true', admin_url( 'options-general.php?page=kksr-data-faker' ) ) );
-			exit;
-		}
-
-		// Check if settings were just saved.
-		if ( isset( $_GET['settings-updated'] ) && 'true' === $_GET['settings-updated'] ) {
-			// Check if we have a flag to regenerate.
-			if ( get_transient( 'kksr_faker_regenerate_after_save' ) ) {
-				// Delete the flag.
-				delete_transient( 'kksr_faker_regenerate_after_save' );
-				
-				// Get instance of data faker.
-				$faker = KKSR_Data_Faker::get_instance();
-				
-				// Regenerate all data with new settings (only for items below threshold).
-				$faker->regenerate_all_data();
-				
-				// Add success message.
-				add_settings_error(
-					'kksr_faker_settings',
-					'regenerated',
-					__( 'Settings saved. All data has been regenerated with new ranges.', 'kksr-data-faker' ),
-					'success'
-				);
-			}
-		}
-	}
-
-	/**
 	 * Render Settings Page
-	 *
-	 * Outputs the HTML for the plugin settings page.
-	 * Includes an instructional notice and the settings form.
-	 *
-	 * @since  3.0.0
-	 * @return void
 	 */
 	public function render_settings_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'kksr-data-faker' ) );
-		}
+		// Get current settings
+		$settings = get_option( 'kksr_faker_settings', array() );
+		
+		// Get active tab
+		$active_tab = isset( $_GET['tab'] ) ? $_GET['tab'] : 'ratings';
+		
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<h1><?php esc_html_e( 'KKSR Data Faker Settings', 'kksr-data-faker' ); ?></h1>
 			
-			<div class="kksr-faker-notice">
-				<h3><?php esc_html_e( 'How it works:', 'kksr-data-faker' ); ?></h3>
-				<ul>
-					<li><?php esc_html_e( 'Data is saved to wp_postmeta with keys: _kksr_count_default, _kksr_avg_default, _kksr_ratings_default.', 'kksr-data-faker' ); ?></li>
-					<li><strong><?php esc_html_e( 'Real data protection: If a post already has votes equal to or greater than the real votes threshold, the plugin will NOT overwrite the data.', 'kksr-data-faker' ); ?></strong></li>
-				</ul>
-			</div>
-
-			<?php settings_errors( 'kksr_faker_settings' ); ?>
-
-			<form method="post" action="options.php">
-				<?php
-				settings_fields( 'kksr_faker_settings_group' );
-				do_settings_sections( 'kksr-data-faker' );
-				submit_button();
-				?>
-			</form>
-
-			<div class="kksr-faker-actions" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-				<h2><?php esc_html_e( 'Actions', 'kksr-data-faker' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Regenerate all data with current settings. This will update all posts and products with votes below the threshold.', 'kksr-data-faker' ); ?></p>
-				<form method="post" action="">
-					<?php wp_nonce_field( 'kksr_faker_regenerate', 'kksr_faker_regenerate_nonce' ); ?>
-					<input type="hidden" name="kksr_faker_action" value="regenerate_all" />
-					<?php submit_button( __( 'Regenerate All Data', 'kksr-data-faker' ), 'secondary', 'regenerate_all', false ); ?>
-				</form>
-			</div>
+			<!-- Tab Navigation -->
+			<h2 class="nav-tab-wrapper">
+				<a href="?page=kksr-data-faker&tab=ratings" class="nav-tab <?php echo $active_tab == 'ratings' ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Ratings', 'kksr-data-faker' ); ?>
+				</a>
+				<a href="?page=kksr-data-faker&tab=sales" class="nav-tab <?php echo $active_tab == 'sales' ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Sales', 'kksr-data-faker' ); ?>
+				</a>
+			</h2>
+			
+			<?php
+			if ( $active_tab == 'ratings' ) {
+				$this->render_ratings_tab( $settings );
+			} else {
+				$this->render_sales_tab( $settings );
+			}
+			?>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Enqueue Admin Scripts and Styles
-	 *
-	 * Loads CSS file only on the plugin's settings page.
-	 * This prevents unnecessary asset loading on other admin pages.
-	 *
-	 * @since  3.0.0
-	 * @param  string $hook Current admin page hook suffix.
-	 * @return void
+	 * Render Ratings Tab
 	 */
-	public function admin_enqueue_scripts( $hook ) {
-		// Only load on our settings page.
-		if ( 'settings_page_kksr-data-faker' !== $hook ) {
-			return;
-		}
-		
-		wp_enqueue_style(
-			'kksr-faker-admin',              // Handle.
-			KKSR_FAKER_PLUGIN_URL . 'assets/admin.css', // Source.
-			array(),                         // Dependencies.
-			KKSR_FAKER_VERSION               // Version for cache busting.
-		);
+	private function render_ratings_tab( $settings ) {
+		$rating_auto = isset( $settings['rating_auto_increment'] ) ? $settings['rating_auto_increment'] : true;
+		$rating_cooldown = isset( $settings['rating_cooldown_days'] ) ? $settings['rating_cooldown_days'] : 7;
+		$rating_threshold = isset( $settings['rating_threshold'] ) ? $settings['rating_threshold'] : 100;
+		$rating_min_stars = isset( $settings['rating_min_stars'] ) ? $settings['rating_min_stars'] : 4;
+		$rating_max_stars = isset( $settings['rating_max_stars'] ) ? $settings['rating_max_stars'] : 5;
+		?>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'kksr_faker_settings_group' ); ?>
+			
+			<table class="form-table">
+				<tr>
+					<th scope="row">
+						<label for="rating_auto_increment"><?php esc_html_e( 'Auto Increment', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<label>
+							<input type="checkbox" id="rating_auto_increment" name="kksr_faker_settings[rating_auto_increment]" value="1" <?php checked( $rating_auto, true ); ?> />
+							<?php esc_html_e( 'Automatically increment rating count on unique visitor views', 'kksr-data-faker' ); ?>
+						</label>
+						<p class="description">
+							<?php esc_html_e( 'Enable to automatically +1 rating count when unique visitors view posts/products.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="rating_cooldown_days"><?php esc_html_e( 'Cooldown Period (Days)', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="rating_cooldown_days" name="kksr_faker_settings[rating_cooldown_days]" value="<?php echo esc_attr( $rating_cooldown ); ?>" min="1" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Number of days before same visitor can increment the rating count again.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="rating_threshold"><?php esc_html_e( 'Protection Threshold', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="rating_threshold" name="kksr_faker_settings[rating_threshold]" value="<?php echo esc_attr( $rating_threshold ); ?>" min="0" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Stop incrementing when rating count reaches this number. Set 0 to disable.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="rating_min_stars"><?php esc_html_e( 'Minimum Stars', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="rating_min_stars" name="kksr_faker_settings[rating_min_stars]" value="<?php echo esc_attr( $rating_min_stars ); ?>" min="1" max="5" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Minimum stars for fake votes (1-5).', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="rating_max_stars"><?php esc_html_e( 'Maximum Stars', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="rating_max_stars" name="kksr_faker_settings[rating_max_stars]" value="<?php echo esc_attr( $rating_max_stars ); ?>" min="1" max="5" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Maximum stars for fake votes (1-5).', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+			</table>
+
+			<?php
+			// Hidden fields to preserve sales settings
+			$sales_auto = isset( $settings['sales_auto_increment'] ) ? $settings['sales_auto_increment'] : true;
+			$sales_cooldown = isset( $settings['sales_cooldown_days'] ) ? $settings['sales_cooldown_days'] : 7;
+			$sales_threshold = isset( $settings['sales_threshold'] ) ? $settings['sales_threshold'] : 50;
+			?>
+			<input type="hidden" name="kksr_faker_settings[sales_auto_increment]" value="<?php echo $sales_auto ? '1' : '0'; ?>" />
+			<input type="hidden" name="kksr_faker_settings[sales_cooldown_days]" value="<?php echo esc_attr( $sales_cooldown ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[sales_threshold]" value="<?php echo esc_attr( $sales_threshold ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_min_stars]" value="<?php echo esc_attr( $rating_min_stars ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_max_stars]" value="<?php echo esc_attr( $rating_max_stars ); ?>" />
+
+			<?php submit_button( __( 'Save Settings', 'kksr-data-faker' ) ); ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Render Sales Tab
+	 */
+	private function render_sales_tab( $settings ) {
+		$sales_auto = isset( $settings['sales_auto_increment'] ) ? $settings['sales_auto_increment'] : true;
+		$sales_cooldown = isset( $settings['sales_cooldown_days'] ) ? $settings['sales_cooldown_days'] : 7;
+		$sales_threshold = isset( $settings['sales_threshold'] ) ? $settings['sales_threshold'] : 50;
+		?>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'kksr_faker_settings_group' ); ?>
+			
+			<table class="form-table">
+				<tr>
+					<th scope="row">
+						<label for="sales_auto_increment"><?php esc_html_e( 'Auto Increment', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<label>
+							<input type="checkbox" id="sales_auto_increment" name="kksr_faker_settings[sales_auto_increment]" value="1" <?php checked( $sales_auto, true ); ?> />
+							<?php esc_html_e( 'Automatically increment sales count on unique visitor views', 'kksr-data-faker' ); ?>
+						</label>
+						<p class="description">
+							<?php esc_html_e( 'Enable to automatically +1 sales count when unique visitors view products.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="sales_cooldown_days"><?php esc_html_e( 'Cooldown Period (Days)', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="sales_cooldown_days" name="kksr_faker_settings[sales_cooldown_days]" value="<?php echo esc_attr( $sales_cooldown ); ?>" min="1" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Number of days before same visitor can increment the sales count again.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label for="sales_threshold"><?php esc_html_e( 'Protection Threshold', 'kksr-data-faker' ); ?></label>
+					</th>
+					<td>
+						<input type="number" id="sales_threshold" name="kksr_faker_settings[sales_threshold]" value="<?php echo esc_attr( $sales_threshold ); ?>" min="0" step="1" class="small-text" />
+						<p class="description">
+							<?php esc_html_e( 'Stop incrementing when sales count reaches this number. Set 0 to disable.', 'kksr-data-faker' ); ?>
+						</p>
+					</td>
+				</tr>
+			</table>
+
+			<?php
+			// Hidden fields to preserve rating settings
+			$rating_auto = isset( $settings['rating_auto_increment'] ) ? $settings['rating_auto_increment'] : true;
+			$rating_cooldown = isset( $settings['rating_cooldown_days'] ) ? $settings['rating_cooldown_days'] : 7;
+			$rating_threshold = isset( $settings['rating_threshold'] ) ? $settings['rating_threshold'] : 100;
+			$rating_min_stars = isset( $settings['rating_min_stars'] ) ? $settings['rating_min_stars'] : 4;
+			$rating_max_stars = isset( $settings['rating_max_stars'] ) ? $settings['rating_max_stars'] : 5;
+			?>
+			<input type="hidden" name="kksr_faker_settings[rating_auto_increment]" value="<?php echo $rating_auto ? '1' : '0'; ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_cooldown_days]" value="<?php echo esc_attr( $rating_cooldown ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_threshold]" value="<?php echo esc_attr( $rating_threshold ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_min_stars]" value="<?php echo esc_attr( $rating_min_stars ); ?>" />
+			<input type="hidden" name="kksr_faker_settings[rating_max_stars]" value="<?php echo esc_attr( $rating_max_stars ); ?>" />
+
+			<?php submit_button( __( 'Save Settings', 'kksr-data-faker' ) ); ?>
+		</form>
+		<?php
 	}
 }
-
