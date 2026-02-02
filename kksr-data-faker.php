@@ -2,11 +2,11 @@
 
 /**
  * Plugin Name:       KKSR Data Faker
- * Plugin URI:        https://github.com/MaiSyDat/kksr-data-faker
+ * Plugin URI:        https://github.com/hopcarton/kkrs-data-faker
  * Description:       Traffic-based ratings and sales counter. Automatically increments KK Star Ratings and WooCommerce sales based on unique visitor views with configurable cooldown period.
  * Version:           4.0.0
  * Author:            MaiSyDat
- * Author URI:        https://hupuna.com
+ * Author URI:        https://github.com/MaiSyDat
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       kksr-data-faker

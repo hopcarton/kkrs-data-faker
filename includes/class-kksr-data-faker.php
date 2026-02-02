@@ -101,9 +101,6 @@ class KKSR_Data_Faker {
 	 * Initialize WordPress Hooks
 	 */
 	private function init_hooks() {
-		// Initialize session early
-		add_action( 'init', array( $this, 'init_session' ) );
-		
 		// Track visitor views
 		add_action( 'wp', array( $this, 'track_visitor_view' ) );
 	}
@@ -141,6 +138,11 @@ class KKSR_Data_Faker {
 		if ( ! is_singular() ) {
 			return;
 		}
+
+		// Start session only when needed
+		if ( ! session_id() && ! headers_sent() ) {
+			session_start();
+		}
 		
 		$post_id = get_the_ID();
 		if ( ! $post_id ) {
@@ -162,6 +164,11 @@ class KKSR_Data_Faker {
 		// Track sales for products only
 		if ( $post_type === 'product' ) {
 			$this->track_sales_view( $post_id, $visitor_hash );
+		}
+
+		// Close session to unlock the file and satisfy Site Health
+		if ( session_id() ) {
+			session_write_close();
 		}
 	}
 
